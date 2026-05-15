@@ -194,6 +194,33 @@ export default function RichTextEditor() {
     }
   }, [scrollToChapter, setScrollToChapter]);
 
+  // Auto-scroll to bottom during content generation
+  const isAutoScrollEnabled = useRef(true);
+  const lastGeneratingChapter = useRef<number>(-1);
+
+  useEffect(() => {
+    const generatingIdx = novelChapters.findIndex(ch => ch.status === "generating");
+    if (generatingIdx >= 0 && generatingIdx !== lastGeneratingChapter.current) {
+      isAutoScrollEnabled.current = true;
+      lastGeneratingChapter.current = generatingIdx;
+    }
+    if (generatingIdx < 0) return;
+    if (!isAutoScrollEnabled.current || !editorWrapRef.current) return;
+    const container = editorWrapRef.current;
+    container.scrollTop = container.scrollHeight;
+  }, [novelChapters]);
+
+  const handleEditorScroll = useCallback(() => {
+    if (!editorWrapRef.current) return;
+    const container = editorWrapRef.current;
+    const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 60;
+    if (!isAtBottom) {
+      isAutoScrollEnabled.current = false;
+    } else {
+      isAutoScrollEnabled.current = true;
+    }
+  }, []);
+
   const handleAIAction = useCallback(
     (action: string) => {
       setFloatingToolbar((p) => ({ ...p, show: false }));
@@ -1845,8 +1872,6 @@ export default function RichTextEditor() {
 
     return (
       <div className="h-full flex flex-col relative">
-        {editor && <EditorToolbar editor={editor} />}
-
         <div className="flex-1 flex overflow-hidden relative">
           {/* TOC toggle button */}
           <button
@@ -1900,7 +1925,7 @@ export default function RichTextEditor() {
           )}
 
           {/* Editor area — show current chapter only */}
-          <div className="flex-1 overflow-y-auto px-8 py-6 pl-14 relative" ref={editorWrapRef} onMouseUp={handleMouseUpSelection}>
+          <div className="flex-1 overflow-y-auto px-8 py-6 pl-14 pb-24 relative" ref={editorWrapRef} onMouseUp={handleMouseUpSelection} onScroll={handleEditorScroll}>
             {/* Floating Selection Toolbar for writing mode */}
             {floatingToolbar.show && (
               <FloatingSelectionToolbar
@@ -1972,9 +1997,10 @@ export default function RichTextEditor() {
           </div>
         </div>
 
-        {/* Floating Bottom Action Bar */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 max-w-[90%]">
-          <div className="inline-flex items-center gap-0.5 bg-white/95 backdrop-blur-sm rounded-full shadow-[0_2px_16px_rgba(0,0,0,0.08)] border border-gray-100/80 px-2.5 py-1.5 whitespace-nowrap">
+        {/* Bottom toolbar */}
+        <div className="border-t border-gray-100 bg-white/95 backdrop-blur-sm flex-shrink-0">
+          {editor && <EditorToolbar editor={editor} />}
+          <div className="flex items-center justify-center py-2 gap-0.5">
             <button
               onClick={() => showToast("调整风格功能演示中...")}
               className="inline-flex items-center gap-1 px-3 py-1.5 text-[13px] text-gray-800 rounded-full hover:bg-gray-50 transition"
@@ -2029,12 +2055,8 @@ export default function RichTextEditor() {
 
   return (
     <div className="h-full flex flex-col relative">
-      <div className="relative z-10">
-        <EditorToolbar editor={editor} />
-      </div>
-
       <div className="flex-1 overflow-hidden relative flex flex-col">
-        <div className="flex-1 overflow-y-auto" ref={editorWrapRef}>
+        <div className="flex-1 overflow-y-auto pb-16" ref={editorWrapRef}>
         <div className="max-w-4xl mx-auto px-4 relative">
           {scene !== "general" && !isSimpleScene && currentChapter && !editorIsEmpty && (
             <h2 className="text-lg font-bold text-gray-800 px-8 pt-6">
@@ -2060,9 +2082,16 @@ export default function RichTextEditor() {
         </div>
       </div>
 
+      {/* Bottom toolbar */}
+      <div className="border-t border-gray-100 bg-white flex-shrink-0">
+        <div className="relative z-10">
+          <EditorToolbar editor={editor} />
+        </div>
+      </div>
+
       {/* Floating Bottom Action Bar - hide when no mode selected or Agent pre-正文 */}
       {!((scene === "novel" || scene === "screenplay" || scene === "marketing" || scene === "knowledge") && (workMode === null || (workMode === "agent" && creationStage < 5))) && (
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 max-w-[90%]">
+      <div className="absolute bottom-14 left-1/2 -translate-x-1/2 z-10 max-w-[90%]">
         <div className="inline-flex items-center gap-0.5 bg-white/95 backdrop-blur-sm rounded-full shadow-[0_2px_16px_rgba(0,0,0,0.08)] border border-gray-100/80 px-2.5 py-1.5 whitespace-nowrap">
           {/* Group 1: AI 调整功能 */}
           <button

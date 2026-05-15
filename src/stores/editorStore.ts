@@ -24,6 +24,10 @@ interface EditorState {
   scene: "novel" | "screenplay" | "marketing" | "knowledge" | "general";
   setScene: (scene: EditorState["scene"]) => void;
 
+  // 小说篇幅类型
+  novelLength: "short" | "medium" | "long" | null;
+  setNovelLength: (length: EditorState["novelLength"]) => void;
+
   // 创作阶段进度（novel agent flow）
   creationStage: number; // 0=灵感, 1=设定, 2=世界观, 3=角色, 4=大纲, 5=正文
   setCreationStage: (stage: number) => void;
@@ -161,6 +165,9 @@ interface EditorState {
 export const useEditorStore = create<EditorState>((set) => ({
   scene: "novel",
   setScene: (scene) => set({ scene }),
+
+  novelLength: null,
+  setNovelLength: (novelLength) => set({ novelLength }),
 
   creationStage: 0,
   setCreationStage: (stage) => set({ creationStage: stage, stageProgress: 0 }),

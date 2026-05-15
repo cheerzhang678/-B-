@@ -16,18 +16,20 @@ export default function WorkbenchLayout() {
   const searchParams = useSearchParams();
   const sceneParam = searchParams.get("scene") || "novel";
   const workId = searchParams.get("id");
+  const sessionKey = searchParams.get("t");
   const isBackup = searchParams.get("v") === "backup1";
-  const { leftCollapsed, leftPanelExpanded, toast, scene, workMode, resetToEmpty } =
+  const { leftCollapsed, leftPanelExpanded, toast, scene, workMode, resetToEmpty, rightCollapsed } =
     useEditorStore();
   const settingsFullscreen = useEditorStore((s) => s.settingsFullscreen);
   const characterFullscreen = useEditorStore((s) => s.characterFullscreen);
   const anyFullscreen = settingsFullscreen || characterFullscreen;
 
-  const hasInitialized = useRef(false);
+  const hasInitialized = useRef<string | null>(null);
 
   useEffect(() => {
-    if (hasInitialized.current) return;
-    hasInitialized.current = true;
+    const key = `${sceneParam}-${workId || ""}-${sessionKey || ""}`;
+    if (hasInitialized.current === key) return;
+    hasInitialized.current = key;
 
     // Map URL scene params to internal scene names
     const sceneMap: Record<string, string> = {
@@ -48,7 +50,7 @@ export default function WorkbenchLayout() {
       const s = mappedScene as (typeof validScenes)[number];
       resetToEmpty(s);
     }
-  }, [sceneParam, workId, resetToEmpty]);
+  }, [sceneParam, workId, sessionKey, resetToEmpty]);
 
   const isNovel = scene === "novel";
   const isScreenplay = scene === "screenplay";
@@ -76,9 +78,11 @@ export default function WorkbenchLayout() {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <ChatPanel />
-        </div>
+        {!rightCollapsed && (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <ChatPanel />
+          </div>
+        )}
 
         {toast && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 bg-gray-800 text-white text-sm rounded-lg shadow-lg toast-enter z-50">

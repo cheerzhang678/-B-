@@ -13,6 +13,8 @@ export default function RecentWorks() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [page, setPage] = useState(0);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [works, setWorks] = useState(mockWorks);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const showToastMsg = useCallback((msg: string) => {
@@ -33,7 +35,7 @@ export default function RecentWorks() {
   }, [activeMenu]);
 
   // Sort by updatedAt descending
-  const allSorted = [...mockWorks].sort(
+  const allSorted = [...works].sort(
     (a, b) =>
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
   );
@@ -86,7 +88,32 @@ export default function RecentWorks() {
           >
             <span className="text-lg flex-shrink-0">{work.emoji}</span>
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm text-gray-800 truncate">{work.title}</h3>
+              {editingId === work.id ? (
+                <input
+                  autoFocus
+                  defaultValue={work.title}
+                  onClick={(e) => e.stopPropagation()}
+                  onBlur={(e) => {
+                    const newTitle = e.target.value.trim();
+                    if (newTitle && newTitle !== work.title) {
+                      setWorks((prev) => prev.map((w) => w.id === work.id ? { ...w, title: newTitle } : w));
+                      showToastMsg("标题已更新");
+                    }
+                    setEditingId(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      (e.target as HTMLInputElement).blur();
+                    }
+                    if (e.key === "Escape") {
+                      setEditingId(null);
+                    }
+                  }}
+                  className="text-sm text-gray-800 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5 outline-none w-full"
+                />
+              ) : (
+                <h3 className="text-sm text-gray-800 truncate">{work.title}</h3>
+              )}
               <p className="text-xs text-gray-300 mt-0.5">
                 {work.wordCount.toLocaleString()}字 &nbsp;&nbsp;{" "}
                 {formatDate(work.updatedAt)}
@@ -104,6 +131,16 @@ export default function RecentWorks() {
               </button>
               {activeMenu === work.id && (
                 <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border py-1 z-10 w-28">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingId(work.id);
+                      setActiveMenu(null);
+                    }}
+                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50"
+                  >
+                    重命名
+                  </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

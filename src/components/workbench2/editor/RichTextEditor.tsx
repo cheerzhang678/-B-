@@ -20,8 +20,10 @@ import {
   ChevronDown,
   RefreshCw,
   MoveHorizontal,
-  Palette,
   Sparkles,
+  Lightbulb,
+  ChevronRight,
+  Flame,
 } from "lucide-react";
 
 export default function RichTextEditor() {
@@ -35,10 +37,13 @@ export default function RichTextEditor() {
     scene,
     pendingInsert,
     setPendingInsert,
+    novelLength,
   } = useEditorStore();
 
   const currentChapter = chapters.find((c) => c.id === currentChapterId);
   const isSimpleScene = scene === "marketing" || scene === "knowledge";
+  const isNovel = scene === "novel";
+  const isMediumOrLong = novelLength === "medium" || novelLength === "long";
   const [showAIMenu, setShowAIMenu] = useState(false);
   const [floatingToolbar, setFloatingToolbar] = useState<{
     show: boolean;
@@ -388,11 +393,11 @@ export default function RichTextEditor() {
           调整长度
         </button>
         <button
-          onClick={() => showToast("调整风格功能演示中...")}
+          onClick={() => showToast("氛围增强功能演示中...")}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-white hover:border-gray-300 transition"
         >
-          <Palette className="w-3.5 h-3.5" />
-          调整风格
+          <Sparkles className="w-3.5 h-3.5" />
+          氛围增强
         </button>
         <div className="flex-1" />
         <button

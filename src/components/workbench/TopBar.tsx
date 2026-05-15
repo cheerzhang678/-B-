@@ -11,6 +11,9 @@ import {
   X,
   FileText,
   Pencil,
+  PanelRightClose,
+  PanelRightOpen,
+  Plus,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -29,6 +32,8 @@ export default function TopBar() {
     workMode,
     scene,
     agentStageData,
+    rightCollapsed,
+    toggleRight,
   } = useEditorStore();
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(title);
@@ -68,6 +73,26 @@ export default function TopBar() {
       >
         <ArrowLeft className="w-4 h-4" />
       </button>
+
+      {/* Agent mode: panel toggle + new conversation */}
+      {workMode === "agent" && (
+        <>
+          <button
+            onClick={toggleRight}
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition"
+            title={rightCollapsed ? "展开对话面板" : "收起对话面板"}
+          >
+            {rightCollapsed ? <PanelRightOpen className="w-4 h-4" /> : <PanelRightClose className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={() => router.push(`/workbench?scene=${scene}&t=${Date.now()}`)}
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition"
+            title="新建对话"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </>
+      )}
 
       <div className="w-px h-5 bg-gray-200 mx-1" />
 

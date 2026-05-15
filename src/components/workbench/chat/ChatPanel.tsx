@@ -1304,6 +1304,7 @@ export default function ChatPanel() {
   const workMode = useEditorStore((s) => s.workMode);
   const setWorkMode = useEditorStore((s) => s.setWorkMode);
   const scene = useEditorStore((s) => s.scene);
+  const setNovelLength = useEditorStore((s) => s.setNovelLength);
   const isScreenplay = scene === "screenplay";
   const isMarketing = scene === "marketing";
   const isKnowledge = scene === "knowledge";
@@ -1639,7 +1640,7 @@ export default function ChatPanel() {
 
   // Handle novel length selection (now happens after settings confirm)
   const handleLengthSelect = useCallback((length: "short" | "medium" | "long") => {
-    setNovelLength(length);
+    setNovelLength(length); // Update both local state and store
     const labels: Record<string, string> = { short: "短篇", medium: "中篇", long: "长篇" };
 
     setMessages((prev) => [
@@ -1998,31 +1999,34 @@ export default function ChatPanel() {
       const streamInterval = setInterval(() => {
         if (i >= chars.length) {
           clearInterval(streamInterval);
-          setNovelChapterStatus(chapterIndex, "done");
           setNovelChapterContent(chapterIndex, fullText);
-          // Update the existing "正在生成" message instead of appending a new one
-          const isShort = dataRef.current.novelLength === "short";
-          const totalChapters = isShort ? 1 : dataRef.current.sceneOutlineCard.chapters.length;
-          const isSingleChapter = totalChapters <= 1;
-          const chTitle = isSingleChapter
-            ? (dataRef.current.sceneTitle || "正文")
-            : (dataRef.current.sceneOutlineCard.chapters[chapterIndex]?.title || `第${chapterIndex + 1}章`);
-          const doneContent = isSingleChapter
-            ? `角色档案完成！正在为你生成正文。\n\n《${chTitle}》生成完毕！你可以在编辑区查看。\n\n想调整哪里直接告诉我，比如「开头节奏太慢」「对话再自然一些」。`
-            : chapterIndex < totalChapters - 1
-            ? `「${chTitle}」生成完毕！你可以在编辑区查看。\n\n想调整直接告诉我，满意就点击下方「继续」${dataRef.current.isScreenplay ? "写下一集" : "写下一章"}。`
-            : `「${chTitle}」生成完毕！全部 ${totalChapters} ${dataRef.current.isScreenplay ? "集" : "章"}已完成。\n\n想调整任何${dataRef.current.isScreenplay ? "集" : "章节"}直接告诉我，比如「${dataRef.current.isScreenplay ? "第三集结尾再加个反转" : "第三章结尾再加点悬念"}」。`;
-          // Find and update the "正在生成" message for this chapter
-          const genMsgId = chapterIndex === 0 ? "model-write-start" : `model-gen-ch-${chapterIndex}`;
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === genMsgId ? { ...m, id: `model-ch-done-${chapterIndex}`, content: doneContent } : m
-            )
-          );
-          // Update progress bar for 正文 stage
-          const doneCount = chapterIndex + 1;
-          const total = Math.max(totalChapters, 1);
-          setStageProgress(doneCount / total);
+          // Delay status change to let the editor render the final content first
+          setTimeout(() => {
+            setNovelChapterStatus(chapterIndex, "done");
+            // Update the existing "正在生成" message instead of appending a new one
+            const isShort = dataRef.current.novelLength === "short";
+            const totalChapters = isShort ? 1 : dataRef.current.sceneOutlineCard.chapters.length;
+            const isSingleChapter = totalChapters <= 1;
+            const chTitle = isSingleChapter
+              ? (dataRef.current.sceneTitle || "正文")
+              : (dataRef.current.sceneOutlineCard.chapters[chapterIndex]?.title || `第${chapterIndex + 1}章`);
+            const doneContent = isSingleChapter
+              ? `角色档案完成！正在为你生成正文。\n\n《${chTitle}》生成完毕！你可以在编辑区查看。\n\n想调整哪里直接告诉我，比如「开头节奏太慢」「对话再自然一些」。`
+              : chapterIndex < totalChapters - 1
+              ? `「${chTitle}」生成完毕！你可以在编辑区查看。\n\n想调整直接告诉我，满意就点击下方「继续」${dataRef.current.isScreenplay ? "写下一集" : "写下一章"}。`
+              : `「${chTitle}」生成完毕！全部 ${totalChapters} ${dataRef.current.isScreenplay ? "集" : "章"}已完成。\n\n想调整任何${dataRef.current.isScreenplay ? "集" : "章节"}直接告诉我，比如「${dataRef.current.isScreenplay ? "第三集结尾再加个反转" : "第三章结尾再加点悬念"}」。`;
+            // Find and update the "正在生成" message for this chapter
+            const genMsgId = chapterIndex === 0 ? "model-write-start" : `model-gen-ch-${chapterIndex}`;
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === genMsgId ? { ...m, id: `model-ch-done-${chapterIndex}`, content: doneContent } : m
+              )
+            );
+            // Update progress bar for 正文 stage
+            const doneCount = chapterIndex + 1;
+            const total = Math.max(totalChapters, 1);
+            setStageProgress(doneCount / total);
+          }, 150);
           return;
         }
         current += chars.slice(i, i + chunkSize).join("");
@@ -2110,6 +2114,24 @@ export default function ChatPanel() {
         setTimeout(() => proceedToNextRound(adjustRound), 500);
       }, 1200);
       return;
+    }
+
+    // ── Novel: intercept word count / length text during length selection ──
+    if (currentRound === 5 && !novelLength && scene === "novel") {
+      const wordCountMatch = text.match(/(\d+)\s*万?\s*字?/);
+      if (wordCountMatch) {
+        let count = parseInt(wordCountMatch[1], 10);
+        if (text.includes("万")) count *= 10000;
+        let detectedLength: "short" | "medium" | "long";
+        if (count <= 30000) detectedLength = "short";
+        else if (count <= 100000) detectedLength = "medium";
+        else detectedLength = "long";
+        handleLengthSelect(detectedLength);
+        return;
+      }
+      if (/短篇|短/.test(text)) { handleLengthSelect("short"); return; }
+      if (/中篇/.test(text)) { handleLengthSelect("medium"); return; }
+      if (/长篇|长/.test(text)) { handleLengthSelect("long"); return; }
     }
 
     // ══ Knowledge: first message → B+C 两层路由 ══
