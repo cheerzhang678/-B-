@@ -49,6 +49,7 @@ export default function RichTextEditor() {
   const settingsFullscreenContent = useEditorStore((s) => s.settingsFullscreenContent);
   const setSettingsFullscreen = useEditorStore((s) => s.setSettingsFullscreen);
   const setSettingsFullscreenContent = useEditorStore((s) => s.setSettingsFullscreenContent);
+  const readingMode = useEditorStore((s) => s.readingMode);
 
   const characterFullscreen = useEditorStore((s) => s.characterFullscreen);
   const characterFullscreenScrollTo = useEditorStore((s) => s.characterFullscreenScrollTo);
@@ -1874,6 +1875,7 @@ export default function RichTextEditor() {
       <div className="h-full flex flex-col relative">
         <div className="flex-1 flex overflow-hidden relative">
           {/* TOC toggle button */}
+          {!readingMode && (
           <button
             onClick={() => setTocOpen(!tocOpen)}
             className="absolute top-3 left-3 z-30 w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition text-gray-500"
@@ -1881,6 +1883,7 @@ export default function RichTextEditor() {
           >
             <List className="w-4 h-4" />
           </button>
+          )}
 
           {/* TOC overlay panel */}
           {tocOpen && (
@@ -1925,9 +1928,9 @@ export default function RichTextEditor() {
           )}
 
           {/* Editor area — show current chapter only */}
-          <div className="flex-1 overflow-y-auto px-8 py-6 pl-14 pb-24 relative" ref={editorWrapRef} onMouseUp={handleMouseUpSelection} onScroll={handleEditorScroll}>
+          <div className={`flex-1 overflow-y-auto relative ${readingMode ? "px-12 py-10 bg-[#faf9f7]" : "px-8 py-6 pl-14 pb-24"}`} ref={editorWrapRef} onMouseUp={readingMode ? undefined : handleMouseUpSelection} onScroll={handleEditorScroll}>
             {/* Floating Selection Toolbar for writing mode */}
-            {floatingToolbar.show && (
+            {!readingMode && floatingToolbar.show && (
               <FloatingSelectionToolbar
                 top={floatingToolbar.top}
                 left={floatingToolbar.left}
@@ -1951,7 +1954,7 @@ export default function RichTextEditor() {
                   if (i < latestIdx && !showPreviousChapters) return null;
                   const isChGenerating = ch.status === "generating";
                   return (
-                    <div key={i} id={`chapter-${i}`} className="mb-12">
+                    <div key={i} id={`chapter-${i}`} className="mb-16">
                       {/* Show "查看上文" button at top of active chapter */}
                       {i === latestIdx && latestIdx > 0 && !showPreviousChapters && (
                         <button
@@ -1961,11 +1964,25 @@ export default function RichTextEditor() {
                           <span>↑</span> 查看前面的章节
                         </button>
                       )}
-                      {/* Chapter title */}
-                      <h2 className="text-lg font-bold text-gray-900 mb-1">{ch.title}</h2>
-                      <p className="text-xs text-gray-400 mb-4">
-                        {isChGenerating ? "正在生成中..." : ch.status === "done" ? "已生成，可直接编辑" : ""}
-                      </p>
+                      {/* Book-style chapter header */}
+                      <div className="text-center mb-8 pt-4">
+                        {novelChapters.length > 1 && (
+                          <p className="text-xs text-gray-400 tracking-[0.3em] uppercase mb-2">
+                            {`第${['一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五','十六','十七','十八','十九','二十'][i] || i + 1}章`}
+                          </p>
+                        )}
+                        <h2 className="text-xl font-bold text-gray-900 mb-3">
+                          {ch.title.replace(/^第[一二三四五六七八九十百千万\d]+[章集节回]\s*/, '') || ch.title}
+                        </h2>
+                        <div className="flex items-center justify-center gap-3">
+                          <span className="block w-8 h-px bg-gray-200" />
+                          <span className="block w-1.5 h-1.5 rounded-full bg-gray-300" />
+                          <span className="block w-8 h-px bg-gray-200" />
+                        </div>
+                        {isChGenerating && (
+                          <p className="text-xs text-indigo-400 mt-3 animate-pulse">正在生成中...</p>
+                        )}
+                      </div>
 
                       {/* Chapter content */}
                       {ch.content ? (
@@ -1974,6 +1991,10 @@ export default function RichTextEditor() {
                             <div className="text-sm text-gray-700 leading-[1.8] whitespace-pre-wrap">
                               {ch.content}
                               <span className="inline-block w-0.5 h-4 bg-indigo-500 animate-pulse ml-0.5 align-middle" />
+                            </div>
+                          ) : readingMode ? (
+                            <div className="text-[15px] text-gray-700 leading-[2] whitespace-pre-wrap font-[serif]">
+                              {ch.content}
                             </div>
                           ) : (
                             <div
@@ -1998,6 +2019,7 @@ export default function RichTextEditor() {
         </div>
 
         {/* Bottom toolbar */}
+        {!readingMode && (
         <div className="border-t border-gray-100 bg-white/95 backdrop-blur-sm flex-shrink-0">
           {editor && <EditorToolbar editor={editor} />}
           <div className="flex items-center justify-center py-2 gap-0.5">
@@ -2033,6 +2055,7 @@ export default function RichTextEditor() {
             </button>
           </div>
         </div>
+        )}
       </div>
     );
   }

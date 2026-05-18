@@ -14,6 +14,8 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Plus,
+  Share2,
+  Eye,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -34,6 +36,9 @@ export default function TopBar() {
     agentStageData,
     rightCollapsed,
     toggleRight,
+    novelChapters,
+    readingMode,
+    setReadingMode,
   } = useEditorStore();
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(title);
@@ -170,6 +175,26 @@ export default function TopBar() {
         </div>
       </div>
 
+      <button
+        onClick={() => {
+          const chapters = novelChapters.filter(ch => ch.content);
+          if (chapters.length === 0) {
+            showToast("暂无内容可分享");
+            return;
+          }
+          const payload = JSON.stringify({ title, chapters: chapters.map(ch => ({ title: ch.title, content: ch.content })) });
+          const encoded = btoa(encodeURIComponent(payload));
+          const url = `${window.location.origin}/share#${encoded}`;
+          navigator.clipboard.writeText(url).then(() => {
+            showToast("分享链接已复制到剪贴板");
+          });
+        }}
+        className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
+      >
+        <Share2 className="w-3.5 h-3.5" />
+        分享
+      </button>
+
       {workMode !== "workflow" && (
         <button
           onClick={() => setShowMaterials(true)}
@@ -179,6 +204,17 @@ export default function TopBar() {
           查看资料
         </button>
       )}
+
+      <button
+        onClick={() => setReadingMode(!readingMode)}
+        className={`flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg transition ${
+          readingMode ? "text-indigo-600 bg-indigo-50" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+        }`}
+        title={readingMode ? "退出阅读模式" : "进入阅读模式"}
+      >
+        <Eye className="w-3.5 h-3.5" />
+        阅读
+      </button>
 
       <button
         onClick={() => setShowHistoryPanel(true)}
@@ -225,11 +261,14 @@ export default function TopBar() {
 interface HistoryItem {
   id: string;
   timestamp: Date;
+  type?: "content" | "stage";
   chapterId: string;
   chapterTitle: string;
   content: string;
   wordCount: number;
-  action: "edit" | "ai_rewrite" | "ai_polish" | "ai_condense" | "ai_atmosphere" | "manual_save";
+  action: "edit" | "ai_rewrite" | "ai_polish" | "ai_condense" | "ai_atmosphere" | "manual_save" | "stage_settings" | "stage_characters" | "stage_outline";
+  stageKey?: string;
+  stageSummary?: string;
 }
 
 function HistoryPanel({
@@ -318,10 +357,22 @@ function HistoryPanel({
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-3xl mx-auto py-8 px-12">
             {selectedItem ? (
-              <div
-                className="prose prose-sm max-w-none text-gray-800 leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: selectedItem.content }}
-              />
+              selectedItem.type === "stage" ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-center">
+                    <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center mx-auto mb-3">
+                      <FileText className="w-5 h-5 text-indigo-500" />
+                    </div>
+                    <p className="text-sm font-medium text-gray-700 mb-1">{selectedItem.stageSummary}</p>
+                    <p className="text-xs text-gray-400">{formatTimestamp(selectedItem.timestamp)}</p>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="prose prose-sm max-w-none text-gray-800 leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: selectedItem.content }}
+                />
+              )
             ) : (
               <div className="flex items-center justify-center h-64 text-gray-400 text-sm">
                 <div className="text-center">
@@ -350,19 +401,25 @@ function HistoryPanel({
                     {visibleItems.map((item, idx) => {
                       const isSelected = selectedId === item.id;
                       const isFirst = group.label === "今天" && idx === 0 && historyItems[0]?.id === item.id;
+                      const isStage = item.type === "stage";
                       return (
                         <button
                           key={item.id}
                           onClick={() => setSelectedId(item.id)}
-                          className={`w-full text-left px-3 py-2 rounded-lg text-sm transition flex items-center justify-between ${
+                          className={`w-full text-left px-3 py-2 rounded-lg text-sm transition flex items-center justify-between gap-1 ${
                             isSelected
                               ? "bg-blue-50 text-blue-600"
                               : "text-gray-600 hover:bg-gray-50"
                           }`}
                         >
-                          <span>{formatTimestamp(item.timestamp)}</span>
-                          {isFirst && (
-                            <span className="text-[10px] text-blue-500 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {isStage && (
+                              <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                            )}
+                            <span className="truncate">{isStage ? item.stageSummary : formatTimestamp(item.timestamp)}</span>
+                          </div>
+                          {isFirst && !isStage && (
+                            <span className="text-[10px] text-blue-500 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded shrink-0">
                               最近更新
                             </span>
                           )}

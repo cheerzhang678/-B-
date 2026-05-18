@@ -12,11 +12,14 @@ interface SettingItem {
 interface HistoryItem {
   id: string;
   timestamp: Date;
+  type?: "content" | "stage";
   chapterId: string;
   chapterTitle: string;
   content: string;
   wordCount: number;
-  action: "edit" | "ai_rewrite" | "ai_polish" | "ai_condense" | "ai_atmosphere" | "manual_save";
+  action: "edit" | "ai_rewrite" | "ai_polish" | "ai_condense" | "ai_atmosphere" | "manual_save" | "stage_settings" | "stage_characters" | "stage_outline";
+  stageKey?: string;
+  stageSummary?: string;
 }
 
 interface EditorState {
@@ -158,6 +161,10 @@ interface EditorState {
   workMode: "agent" | "workflow" | null;
   setWorkMode: (mode: "agent" | "workflow") => void;
 
+  // 阅读模式
+  readingMode: boolean;
+  setReadingMode: (mode: boolean) => void;
+
   // 重置为空白文档
   resetToEmpty: (sceneType: EditorState["scene"]) => void;
 }
@@ -174,7 +181,35 @@ export const useEditorStore = create<EditorState>((set) => ({
   stageProgress: 0,
   setStageProgress: (progress) => set({ stageProgress: progress }),
   agentStageData: {},
-  setAgentStageData: (key, data) => set((s) => ({ agentStageData: { ...s.agentStageData, [key]: data } })),
+  setAgentStageData: (key, data) => set((s) => {
+    const stageLabels: Record<string, string> = {
+      settings: "创作设定",
+      characters: "角色设定",
+      outline: "大纲",
+    };
+    const stageActions: Record<string, HistoryItem["action"]> = {
+      settings: "stage_settings",
+      characters: "stage_characters",
+      outline: "stage_outline",
+    };
+    const newState: Partial<EditorState> = { agentStageData: { ...s.agentStageData, [key]: data } };
+    if (stageLabels[key]) {
+      const stageItem: HistoryItem = {
+        id: `h${Date.now()}`,
+        timestamp: new Date(),
+        type: "stage",
+        chapterId: "",
+        chapterTitle: stageLabels[key],
+        content: "",
+        wordCount: 0,
+        action: stageActions[key]!,
+        stageKey: key,
+        stageSummary: key === "settings" ? "确认创作设定" : key === "characters" ? "生成角色档案" : "生成大纲",
+      };
+      newState.historyItems = [stageItem, ...s.historyItems].slice(0, 50);
+    }
+    return newState;
+  }),
 
   settingsFullscreen: false,
   settingsFullscreenContent: "",
@@ -443,6 +478,9 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   workMode: null,
   setWorkMode: (mode) => set({ workMode: mode }),
+
+  readingMode: false,
+  setReadingMode: (mode) => set({ readingMode: mode }),
 
   resetToEmpty: (sceneType) => {
     const sceneNames: Record<string, string> = {

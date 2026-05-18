@@ -1294,6 +1294,7 @@ export default function ChatPanel() {
   const setCreationStage = useEditorStore((s) => s.setCreationStage);
   const setStageProgress = useEditorStore((s) => s.setStageProgress);
   const setAutoTitle = useEditorStore((s) => s.setAutoTitle);
+  const setTitle = useEditorStore((s) => s.setTitle);
   const setAgentStageData = useEditorStore((s) => s.setAgentStageData);
   const initNovelChapters = useEditorStore((s) => s.initNovelChapters);
   const setNovelChapterStatus = useEditorStore((s) => s.setNovelChapterStatus);
@@ -1733,6 +1734,7 @@ export default function ChatPanel() {
           setCurrentRound(4);
           setCreationStage(1);
           setAgentStageData("settings", dataRef.current.sceneSettingsCard);
+          setAutoTitle(dataRef.current.sceneTitle);
         }, 2500);
         return;
       }
@@ -2112,6 +2114,26 @@ export default function ChatPanel() {
           },
         ]);
         setTimeout(() => proceedToNextRound(adjustRound), 500);
+      }, 1200);
+      return;
+    }
+
+    // ── Detect title update intent ──
+    const titleIntentMatch = text.match(/(?:帮我把|把|将)\s*[「"'《]([^」"'》]+)[」"'》]\s*(?:更新|改|设置?|用作?|当作?).*(?:标题|题目|名[字称])/);
+    const titleIntentMatch2 = text.match(/(?:标题|题目|名[字称]).*(?:改[成为]?|更新[成为]?|设[成为]?|叫|取[名为]?)\s*[「"'《]?([^」"'》\s]+)[」"'》]?/);
+    const titleIntentMatch3 = text.match(/(?:取名|起名|命名).*[「"'《]([^」"'》]+)[」"'》]/);
+    const extractedTitle = titleIntentMatch?.[1] || titleIntentMatch2?.[1] || titleIntentMatch3?.[1];
+    if (extractedTitle) {
+      setTitle(extractedTitle);
+      const thinkingId = `thinking-title-${Date.now()}`;
+      setTimeout(() => {
+        setMessages((prev) => [...prev, { id: thinkingId, sender: "model", type: "thinking" }]);
+      }, 300);
+      setTimeout(() => {
+        setMessages((prev) => [
+          ...prev.filter((m) => m.id !== thinkingId),
+          { id: `model-title-${Date.now()}`, sender: "model", type: "text", content: `好的，已将标题更新为「${extractedTitle}」！你可以在左侧编辑区顶部看到新标题。` },
+        ]);
       }, 1200);
       return;
     }
@@ -3005,6 +3027,7 @@ export default function ChatPanel() {
           setCurrentRound(4);
           setCreationStage(1);
           setAgentStageData("settings", dataRef.current.sceneSettingsCard);
+          setAutoTitle(dataRef.current.sceneTitle);
         }, 2500);
         return;
       }
