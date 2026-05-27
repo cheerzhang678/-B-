@@ -1928,7 +1928,7 @@ export default function RichTextEditor() {
           )}
 
           {/* Editor area — show current chapter only */}
-          <div className={`flex-1 overflow-y-auto relative ${readingMode ? "px-12 py-10 bg-[#faf9f7]" : "px-8 py-6 pl-14 pb-24"}`} ref={editorWrapRef} onMouseUp={readingMode ? undefined : handleMouseUpSelection} onScroll={handleEditorScroll}>
+          <div className={`flex-1 overflow-y-auto relative ${readingMode ? "bg-[#faf9f7]" : ""}`} ref={editorWrapRef} onMouseUp={readingMode ? undefined : handleMouseUpSelection} onScroll={handleEditorScroll}>
             {/* Floating Selection Toolbar for writing mode */}
             {!readingMode && floatingToolbar.show && (
               <FloatingSelectionToolbar
@@ -1942,7 +1942,7 @@ export default function RichTextEditor() {
                 showToast={showToast}
               />
             )}
-            <div className="max-w-3xl mx-auto">
+            <div className={`max-w-3xl mx-auto ${readingMode ? "px-8 py-12" : ""}`}>
               {(() => {
                 // Find the "active" chapter: the latest generating, or the last done
                 const activeIdx = novelChapters.findIndex((c) => c.status === "generating");

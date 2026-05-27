@@ -22,6 +22,7 @@ export default function WorkbenchLayout() {
     useEditorStore();
   const settingsFullscreen = useEditorStore((s) => s.settingsFullscreen);
   const characterFullscreen = useEditorStore((s) => s.characterFullscreen);
+  const readingMode = useEditorStore((s) => s.readingMode);
   const anyFullscreen = settingsFullscreen || characterFullscreen;
 
   const hasInitialized = useRef<string | null>(null);
@@ -71,14 +72,14 @@ export default function WorkbenchLayout() {
   if (isAgentScene && !isBackup && workMode !== "workflow") {
     return (
       <div className="h-screen flex bg-white overflow-hidden">
-        <div className="flex-1 flex flex-col overflow-hidden border-r border-gray-100">
+        <div className={`flex-1 flex flex-col overflow-hidden ${readingMode ? "" : "border-r border-gray-100"}`}>
           <TopBar />
-          <div className="flex-1 overflow-hidden">
+          <div className={`flex-1 overflow-hidden ${readingMode ? "bg-[#faf9f7]" : ""}`}>
             <RichTextEditor />
           </div>
         </div>
 
-        {!rightCollapsed && (
+        {!rightCollapsed && !readingMode && (
           <div className="flex-1 flex flex-col overflow-hidden">
             <ChatPanel />
           </div>

@@ -17,9 +17,11 @@ interface HistoryItem {
   chapterTitle: string;
   content: string;
   wordCount: number;
-  action: "edit" | "ai_rewrite" | "ai_polish" | "ai_condense" | "ai_atmosphere" | "manual_save" | "stage_settings" | "stage_characters" | "stage_outline";
+  action: "edit" | "ai_rewrite" | "ai_polish" | "ai_condense" | "ai_atmosphere" | "manual_save" | "stage_settings" | "stage_characters" | "stage_outline" | "stage_brief" | "stage_script";
   stageKey?: string;
   stageSummary?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  stageSnapshot?: Record<string, any>;
 }
 
 interface EditorState {
@@ -156,6 +158,7 @@ interface EditorState {
   setShowHistoryPanel: (show: boolean) => void;
   addHistoryItem: (item: Omit<HistoryItem, "id" | "timestamp">) => void;
   restoreFromHistory: (historyId: string) => void;
+  restoreStageFromHistory: (historyId: string, mode: "restart" | "update") => void;
 
   // 创作模式（Agent / Workflow）
   workMode: "agent" | "workflow" | null;
@@ -186,11 +189,22 @@ export const useEditorStore = create<EditorState>((set) => ({
       settings: "创作设定",
       characters: "角色设定",
       outline: "大纲",
+      videoBrief: "创意Brief",
+      videoScript: "分幕剧本",
     };
     const stageActions: Record<string, HistoryItem["action"]> = {
       settings: "stage_settings",
       characters: "stage_characters",
       outline: "stage_outline",
+      videoBrief: "stage_brief",
+      videoScript: "stage_script",
+    };
+    const stageSummaries: Record<string, string> = {
+      settings: "确认创作设定",
+      characters: "生成角色档案",
+      outline: "生成大纲",
+      videoBrief: "生成创意Brief",
+      videoScript: "生成分幕剧本",
     };
     const newState: Partial<EditorState> = { agentStageData: { ...s.agentStageData, [key]: data } };
     if (stageLabels[key]) {
@@ -204,7 +218,8 @@ export const useEditorStore = create<EditorState>((set) => ({
         wordCount: 0,
         action: stageActions[key]!,
         stageKey: key,
-        stageSummary: key === "settings" ? "确认创作设定" : key === "characters" ? "生成角色档案" : "生成大纲",
+        stageSummary: stageSummaries[key],
+        stageSnapshot: { [key]: data },
       };
       newState.historyItems = [stageItem, ...s.historyItems].slice(0, 50);
     }
@@ -473,6 +488,52 @@ export const useEditorStore = create<EditorState>((set) => ({
             : ch
         ),
         currentChapterId: historyItem.chapterId,
+      };
+    }),
+  restoreStageFromHistory: (historyId, mode) =>
+    set((s) => {
+      const historyItem = s.historyItems.find((h) => h.id === historyId);
+      if (!historyItem || historyItem.type !== "stage" || !historyItem.stageKey) return s;
+      const key = historyItem.stageKey;
+      const snapshot = historyItem.stageSnapshot;
+      // Update agentStageData with snapshot
+      const newAgentStageData = { ...s.agentStageData };
+      if (snapshot) {
+        Object.assign(newAgentStageData, snapshot);
+      } else {
+        newAgentStageData[key] = s.agentStageData[key]; // fallback: no snapshot, keep current
+      }
+      if (mode === "update") {
+        // Only update data, don't change stage or clear downstream
+        return { agentStageData: newAgentStageData };
+      }
+      // Restart mode: rollback stage and clear downstream data
+      const stageMap: Record<string, number> = {
+        settings: 1,
+        characters: 3,
+        outline: 4,
+        videoBrief: 2,
+        videoScript: 3,
+      };
+      const newCreationStage = stageMap[key] ?? s.creationStage;
+      // Clear downstream data based on stage
+      const downstreamClear: Record<string, string[]> = {
+        settings: ["characters", "outline"],
+        characters: ["outline"],
+        outline: [],
+        videoBrief: ["videoScript"],
+        videoScript: [],
+      };
+      const toClear = downstreamClear[key] || [];
+      for (const k of toClear) {
+        delete newAgentStageData[k];
+      }
+      // Clear novelChapters if rolling back to before writing
+      const newNovelChapters = newCreationStage < 5 ? [] : s.novelChapters;
+      return {
+        agentStageData: newAgentStageData,
+        creationStage: newCreationStage,
+        novelChapters: newNovelChapters,
       };
     }),
 

@@ -30,6 +30,7 @@ export default function TopBar() {
     showHistoryPanel,
     setShowHistoryPanel,
     restoreFromHistory,
+    restoreStageFromHistory,
     creationStage,
     workMode,
     scene,
@@ -195,6 +196,18 @@ export default function TopBar() {
         分享
       </button>
 
+      <button
+        onClick={() => setReadingMode(!readingMode)}
+        className={`flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg transition ${
+          readingMode
+            ? "text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
+            : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+        }`}
+      >
+        <Eye className="w-3.5 h-3.5" />
+        阅读模式
+      </button>
+
       {workMode !== "workflow" && (
         <button
           onClick={() => setShowMaterials(true)}
@@ -241,6 +254,11 @@ export default function TopBar() {
             showToast("已恢复到历史版本");
             setShowHistoryPanel(false);
           }}
+          onRestoreStage={(id, mode) => {
+            restoreStageFromHistory(id, mode);
+            showToast(mode === "restart" ? "已恢复并从此阶段重新创作" : "已更新创作资料");
+            setShowHistoryPanel(false);
+          }}
         />
       )}
 
@@ -266,27 +284,33 @@ interface HistoryItem {
   chapterTitle: string;
   content: string;
   wordCount: number;
-  action: "edit" | "ai_rewrite" | "ai_polish" | "ai_condense" | "ai_atmosphere" | "manual_save" | "stage_settings" | "stage_characters" | "stage_outline";
+  action: "edit" | "ai_rewrite" | "ai_polish" | "ai_condense" | "ai_atmosphere" | "manual_save" | "stage_settings" | "stage_characters" | "stage_outline" | "stage_brief" | "stage_script";
   stageKey?: string;
   stageSummary?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  stageSnapshot?: Record<string, any>;
 }
 
 function HistoryPanel({
   historyItems,
   onClose,
   onRestore,
+  onRestoreStage,
 }: {
   historyItems: HistoryItem[];
   onClose: () => void;
   onRestore: (id: string) => void;
+  onRestoreStage: (id: string, mode: "restart" | "update") => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(
     historyItems.length > 0 ? historyItems[0].id : null
   );
   const [showChanges, setShowChanges] = useState(true);
   const [showAll, setShowAll] = useState(false);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
   const selectedItem = historyItems.find((h) => h.id === selectedId);
   const isLatest = selectedId === (historyItems.length > 0 ? historyItems[0].id : null);
+  const isSelectedStage = selectedItem?.type === "stage";
 
   // Group items by date label: 今天 / 月份
   const groupItems = () => {
@@ -338,18 +362,74 @@ function HistoryPanel({
           <ArrowLeft className="w-4 h-4" />
           返回文档
         </button>
-        <button
-          disabled={isLatest}
-          onClick={() => selectedId && onRestore(selectedId)}
-          className={`px-5 py-1.5 rounded-full text-sm font-medium transition ${
-            isLatest
-              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-              : "bg-gray-700 text-white hover:bg-gray-800"
-          }`}
-        >
-          还原此版本
-        </button>
+        {isSelectedStage ? (
+          <button
+            disabled={isLatest}
+            onClick={() => !isLatest && setShowRestoreModal(true)}
+            className={`px-5 py-1.5 rounded-full text-sm font-medium transition ${
+              isLatest
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                : "bg-indigo-600 text-white hover:bg-indigo-700"
+            }`}
+          >
+            还原此版本
+          </button>
+        ) : (
+          <button
+            disabled={isLatest}
+            onClick={() => selectedId && onRestore(selectedId)}
+            className={`px-5 py-1.5 rounded-full text-sm font-medium transition ${
+              isLatest
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                : "bg-gray-700 text-white hover:bg-gray-800"
+            }`}
+          >
+            还原此版本
+          </button>
+        )}
       </div>
+
+      {/* Restore mode modal for stage items */}
+      {showRestoreModal && selectedId && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/20">
+          <div className="bg-white rounded-xl shadow-2xl border w-[400px] p-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-2">还原过程稿</h3>
+            <p className="text-sm text-gray-500 mb-5">选择还原方式，恢复「{selectedItem?.stageSummary}」快照</p>
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  onRestoreStage(selectedId, "restart");
+                  setShowRestoreModal(false);
+                }}
+                className="w-full text-left p-3.5 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-medium text-gray-800">从此阶段重新创作</span>
+                </div>
+                <p className="text-xs text-gray-400">还原此阶段数据，清除后续生成的内容，从该阶段重新开始</p>
+              </button>
+              <button
+                onClick={() => {
+                  onRestoreStage(selectedId, "update");
+                  setShowRestoreModal(false);
+                }}
+                className="w-full text-left p-3.5 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-medium text-gray-800">仅更新资料</span>
+                </div>
+                <p className="text-xs text-gray-400">还原此阶段数据，不影响后续已生成的内容和正文</p>
+              </button>
+            </div>
+            <button
+              onClick={() => setShowRestoreModal(false)}
+              className="mt-4 w-full text-center text-sm text-gray-400 hover:text-gray-600 transition"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main body */}
       <div className="flex flex-1 overflow-hidden">
@@ -358,15 +438,7 @@ function HistoryPanel({
           <div className="max-w-3xl mx-auto py-8 px-12">
             {selectedItem ? (
               selectedItem.type === "stage" ? (
-                <div className="flex items-center justify-center h-64">
-                  <div className="text-center">
-                    <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center mx-auto mb-3">
-                      <FileText className="w-5 h-5 text-indigo-500" />
-                    </div>
-                    <p className="text-sm font-medium text-gray-700 mb-1">{selectedItem.stageSummary}</p>
-                    <p className="text-xs text-gray-400">{formatTimestamp(selectedItem.timestamp)}</p>
-                  </div>
-                </div>
+                <StageSnapshotPreview item={selectedItem} formatTimestamp={formatTimestamp} />
               ) : (
                 <div
                   className="prose prose-sm max-w-none text-gray-800 leading-relaxed"
@@ -408,7 +480,7 @@ function HistoryPanel({
                           onClick={() => setSelectedId(item.id)}
                           className={`w-full text-left px-3 py-2 rounded-lg text-sm transition flex items-center justify-between gap-1 ${
                             isSelected
-                              ? "bg-blue-50 text-blue-600"
+                              ? isStage ? "bg-indigo-50 text-indigo-600" : "bg-blue-50 text-blue-600"
                               : "text-gray-600 hover:bg-gray-50"
                           }`}
                         >
@@ -416,7 +488,16 @@ function HistoryPanel({
                             {isStage && (
                               <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-indigo-400" />
                             )}
-                            <span className="truncate">{isStage ? item.stageSummary : formatTimestamp(item.timestamp)}</span>
+                            <div className="min-w-0">
+                              {isStage ? (
+                                <div>
+                                  <span className="truncate block text-sm">{item.stageSummary}</span>
+                                  <span className="text-[10px] text-gray-400">{formatTimestamp(item.timestamp)}</span>
+                                </div>
+                              ) : (
+                                <span className="truncate">{formatTimestamp(item.timestamp)}</span>
+                              )}
+                            </div>
                           </div>
                           {isFirst && !isStage && (
                             <span className="text-[10px] text-blue-500 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded shrink-0">
@@ -461,6 +542,268 @@ function HistoryPanel({
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── 过程稿快照预览 ─────────────────────────────────────────
+function StageSnapshotPreview({ item, formatTimestamp }: { item: HistoryItem; formatTimestamp: (d: Date) => string }) {
+  const snapshot = item.stageSnapshot;
+  const stageKey = item.stageKey;
+
+  // Settings snapshot
+  if (stageKey === "settings" && snapshot?.settings) {
+    const settings = snapshot.settings as Record<string, { label: string; value: string }[]>;
+    return (
+      <div>
+        <div className="flex items-center gap-2 mb-6">
+          <span className="px-2.5 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full font-medium">创作设定</span>
+          <span className="text-xs text-gray-400">{formatTimestamp(item.timestamp)}</span>
+        </div>
+        {Object.entries(settings).map(([group, fields]) => (
+          <div key={group} className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-100">{group}</h3>
+            <div className="space-y-3">
+              {fields.map((f) => (
+                <div key={f.label}>
+                  <span className="text-xs font-medium text-gray-400 block mb-1">{f.label}</span>
+                  <p className="text-sm text-gray-700 leading-relaxed">{f.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Characters snapshot
+  if (stageKey === "characters" && snapshot?.characters) {
+    const charData = snapshot.characters;
+    return (
+      <div>
+        <div className="flex items-center gap-2 mb-6">
+          <span className="px-2.5 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full font-medium">角色档案</span>
+          <span className="text-xs text-gray-400">{formatTimestamp(item.timestamp)}</span>
+        </div>
+        {charData.femaleLead && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-100">女主角</h3>
+            <div className="bg-purple-50/50 rounded-lg p-4 space-y-2.5">
+              <span className="text-base font-bold text-purple-600">{charData.femaleLead.name}</span>
+              {[
+                { label: "身份", value: charData.femaleLead.identity },
+                { label: "性格", value: charData.femaleLead.personality },
+                { label: "外貌", value: charData.femaleLead.appearance },
+                { label: "背景", value: charData.femaleLead.background },
+              ].filter(f => f.value).map((f) => (
+                <div key={f.label} className="flex gap-3">
+                  <span className="text-xs text-purple-400 w-10 shrink-0 pt-0.5">{f.label}</span>
+                  <p className="text-sm text-gray-700 leading-relaxed">{f.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {charData.maleLead && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-100">男主角</h3>
+            <div className="bg-blue-50/50 rounded-lg p-4 space-y-2.5">
+              <span className="text-base font-bold text-blue-600">{charData.maleLead.name}</span>
+              {[
+                { label: "身份", value: charData.maleLead.identity },
+                { label: "性格", value: charData.maleLead.personality },
+                { label: "外貌", value: charData.maleLead.appearance },
+                { label: "背景", value: charData.maleLead.background },
+              ].filter(f => f.value).map((f) => (
+                <div key={f.label} className="flex gap-3">
+                  <span className="text-xs text-blue-400 w-10 shrink-0 pt-0.5">{f.label}</span>
+                  <p className="text-sm text-gray-700 leading-relaxed">{f.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {charData.supporting?.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-100">关键配角</h3>
+            <div className="space-y-2.5">
+              {charData.supporting.map((c: { name: string; role: string; desc: string }) => (
+                <div key={c.name} className="bg-gray-50/60 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-medium text-amber-600">{c.name}</span>
+                    <span className="text-[11px] text-gray-400">{c.role}</span>
+                  </div>
+                  <p className="text-sm text-gray-600 leading-relaxed">{c.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {charData.relationships && (
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-100">人物关系</h3>
+            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{charData.relationships}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Outline snapshot
+  if (stageKey === "outline" && snapshot?.outline) {
+    const outlineData = snapshot.outline;
+    return (
+      <div>
+        <div className="flex items-center gap-2 mb-6">
+          <span className="px-2.5 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full font-medium">大纲</span>
+          <span className="text-xs text-gray-400">{formatTimestamp(item.timestamp)}</span>
+        </div>
+        <div className="flex items-center gap-3 mb-4">
+          {outlineData.structure && <span className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-sm rounded-full font-medium">{outlineData.structure}</span>}
+          {(outlineData.totalChapters || outlineData.estimatedWords) && (
+            <span className="text-sm text-gray-400">{outlineData.totalChapters ? `${outlineData.totalChapters}章` : ""}{outlineData.estimatedWords ? ` · ${outlineData.estimatedWords}` : ""}</span>
+          )}
+        </div>
+        {outlineData.chapters?.length > 0 && (
+          <div className="space-y-3">
+            {outlineData.chapters.map((ch: { title: string; summary: string; keyEvent?: string; season?: string }, i: number) => (
+              <div key={i} className="bg-gray-50/60 rounded-lg p-3.5">
+                <div className="flex items-center gap-2.5 mb-1.5">
+                  <h4 className="text-sm font-semibold text-gray-800">{ch.title}</h4>
+                  {ch.keyEvent && <span className="px-2 py-0.5 text-[10px] rounded-full bg-indigo-50 text-indigo-500 border border-indigo-100">{ch.keyEvent}</span>}
+                  {ch.season && <span className="px-2 py-0.5 text-[10px] rounded-full bg-green-50 text-green-500 border border-green-100">{ch.season}</span>}
+                </div>
+                <p className="text-sm text-gray-600 leading-relaxed">{ch.summary}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Brief snapshot (marketing)
+  if (stageKey === "videoBrief" && snapshot?.videoBrief) {
+    const brief = snapshot.videoBrief || snapshot.brief;
+    if (!brief) return <StageSnapshotFallback item={item} formatTimestamp={formatTimestamp} />;
+    return (
+      <div>
+        <div className="flex items-center gap-2 mb-6">
+          <span className="px-2.5 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full font-medium">创意Brief</span>
+          <span className="text-xs text-gray-400">{formatTimestamp(item.timestamp)}</span>
+        </div>
+        {brief.confirmedParams && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-100">创作参数</h3>
+            <div className="space-y-2">
+              {brief.confirmedParams.map((p: { label: string; value: string }) => (
+                <div key={p.label} className="flex items-start gap-4">
+                  <span className="text-sm text-gray-400 w-20 shrink-0">{p.label}</span>
+                  <span className="text-sm text-gray-700">{p.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {brief.sellingPoints && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-100">商品卖点矩阵</h3>
+            <div className="space-y-3">
+              {brief.sellingPoints.core && (
+                <div><span className="text-xs font-medium text-red-400 block mb-1.5">核心卖点</span>
+                <div className="space-y-1">{brief.sellingPoints.core.map((s: string, i: number) => (
+                  <p key={i} className="text-sm text-gray-700 leading-relaxed">· {s}</p>
+                ))}</div></div>
+              )}
+              {brief.sellingPoints.differentiator && (
+                <div><span className="text-xs font-medium text-blue-400 block mb-1.5">差异化卖点</span>
+                <div className="space-y-1">{brief.sellingPoints.differentiator.map((s: string, i: number) => (
+                  <p key={i} className="text-sm text-gray-700 leading-relaxed">· {s}</p>
+                ))}</div></div>
+              )}
+            </div>
+          </div>
+        )}
+        {brief.directions && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-100">创意方向</h3>
+            <div className="space-y-3">
+              {brief.directions.map((d: { title: string; storyType: string; overview: string }, i: number) => (
+                <div key={i} className="bg-gray-50/60 rounded-lg p-3.5">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-sm font-semibold text-gray-800">方向{i + 1}：{d.title}</span>
+                    {d.storyType && <span className="px-2 py-0.5 text-[10px] rounded-full bg-indigo-50 text-indigo-500">{d.storyType}</span>}
+                  </div>
+                  <p className="text-sm text-gray-600 leading-relaxed">{d.overview}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Script snapshot (marketing)
+  if (stageKey === "videoScript" && snapshot?.videoScript) {
+    const script = snapshot.videoScript;
+    return (
+      <div>
+        <div className="flex items-center gap-2 mb-6">
+          <span className="px-2.5 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full font-medium">分幕剧本</span>
+          <span className="text-xs text-gray-400">{formatTimestamp(item.timestamp)}</span>
+        </div>
+        {script.characters?.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-100">角色表</h3>
+            <div className="space-y-2">
+              {script.characters.map((c: { name: string; description: string }, i: number) => (
+                <div key={i} className="flex gap-3">
+                  <span className="text-sm font-medium text-indigo-600 w-12 shrink-0">{c.name}</span>
+                  <span className="text-sm text-gray-600">{c.description}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {script.scenes?.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-100">分幕剧本</h3>
+            <div className="space-y-3">
+              {script.scenes.map((s: { act: number; heading: string; characters: string[]; visual: string; dialogue: string }, i: number) => (
+                <div key={i} className="bg-gray-50/60 rounded-lg p-3.5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-bold text-indigo-600">幕{s.act}</span>
+                    <span className="text-xs text-gray-500">{s.heading}</span>
+                  </div>
+                  <div className="space-y-1.5 text-sm">
+                    {s.characters && <div><span className="text-gray-400 text-xs">角色：</span><span className="text-gray-600">{s.characters.join("、")}</span></div>}
+                    {s.visual && <div><span className="text-gray-400 text-xs">画面：</span><span className="text-gray-600">{s.visual}</span></div>}
+                    {s.dialogue && <div><span className="text-gray-400 text-xs">台词：</span><span className="text-gray-700 italic">{s.dialogue}</span></div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return <StageSnapshotFallback item={item} formatTimestamp={formatTimestamp} />;
+}
+
+function StageSnapshotFallback({ item, formatTimestamp }: { item: HistoryItem; formatTimestamp: (d: Date) => string }) {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <div className="text-center">
+        <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center mx-auto mb-3">
+          <FileText className="w-5 h-5 text-indigo-500" />
+        </div>
+        <p className="text-sm font-medium text-gray-700 mb-1">{item.stageSummary}</p>
+        <p className="text-xs text-gray-400">{formatTimestamp(item.timestamp)}</p>
       </div>
     </div>
   );
