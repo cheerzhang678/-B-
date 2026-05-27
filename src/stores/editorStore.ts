@@ -496,18 +496,18 @@ export const useEditorStore = create<EditorState>((set) => ({
       if (!historyItem || historyItem.type !== "stage" || !historyItem.stageKey) return s;
       const key = historyItem.stageKey;
       const snapshot = historyItem.stageSnapshot;
-      // Update agentStageData with snapshot
+      // Restore snapshot data
       const newAgentStageData = { ...s.agentStageData };
       if (snapshot) {
         Object.assign(newAgentStageData, snapshot);
-      } else {
-        newAgentStageData[key] = s.agentStageData[key]; // fallback: no snapshot, keep current
       }
       if (mode === "update") {
-        // Only update data, don't change stage or clear downstream
+        // Only restore data, don't change stage
         return { agentStageData: newAgentStageData };
       }
-      // Restart mode: rollback stage and clear downstream data
+      // Restart mode: restore data + rollback stage, but do NOT clear downstream data
+      // Downstream data (characters/outline/novelChapters) stays until naturally overwritten
+      // by new generation when Agent flow re-enters those stages
       const stageMap: Record<string, number> = {
         settings: 1,
         characters: 3,
@@ -516,24 +516,9 @@ export const useEditorStore = create<EditorState>((set) => ({
         videoScript: 3,
       };
       const newCreationStage = stageMap[key] ?? s.creationStage;
-      // Clear downstream data based on stage
-      const downstreamClear: Record<string, string[]> = {
-        settings: ["characters", "outline"],
-        characters: ["outline"],
-        outline: [],
-        videoBrief: ["videoScript"],
-        videoScript: [],
-      };
-      const toClear = downstreamClear[key] || [];
-      for (const k of toClear) {
-        delete newAgentStageData[k];
-      }
-      // Clear novelChapters if rolling back to before writing
-      const newNovelChapters = newCreationStage < 5 ? [] : s.novelChapters;
       return {
         agentStageData: newAgentStageData,
         creationStage: newCreationStage,
-        novelChapters: newNovelChapters,
       };
     }),
 

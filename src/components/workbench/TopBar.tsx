@@ -256,7 +256,7 @@ export default function TopBar() {
           }}
           onRestoreStage={(id, mode) => {
             restoreStageFromHistory(id, mode);
-            showToast(mode === "restart" ? "已恢复并从此阶段重新创作" : "已更新创作资料");
+            showToast(mode === "restart" ? "已回退到此阶段，可重新创作" : "已更新创作资料");
             setShowHistoryPanel(false);
           }}
         />
@@ -404,9 +404,9 @@ function HistoryPanel({
                 className="w-full text-left p-3.5 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition"
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-medium text-gray-800">从此阶段重新创作</span>
+                  <span className="text-sm font-medium text-gray-800">回退到此阶段</span>
                 </div>
-                <p className="text-xs text-gray-400">还原此阶段数据，清除后续生成的内容，从该阶段重新开始</p>
+                <p className="text-xs text-gray-400">恢复此阶段数据，回到该创作阶段重新开始。后续已生成的内容暂时保留，重新生成时自然覆盖</p>
               </button>
               <button
                 onClick={() => {
@@ -418,7 +418,7 @@ function HistoryPanel({
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-sm font-medium text-gray-800">仅更新资料</span>
                 </div>
-                <p className="text-xs text-gray-400">还原此阶段数据，不影响后续已生成的内容和正文</p>
+                <p className="text-xs text-gray-400">恢复此阶段数据，不改变当前创作阶段，不影响后续已生成的内容</p>
               </button>
             </div>
             <button
