@@ -21,9 +21,6 @@ import {
   RefreshCw,
   MoveHorizontal,
   Sparkles,
-  Lightbulb,
-  ChevronRight,
-  Flame,
 } from "lucide-react";
 
 export default function RichTextEditor() {
@@ -37,13 +34,10 @@ export default function RichTextEditor() {
     scene,
     pendingInsert,
     setPendingInsert,
-    novelLength,
   } = useEditorStore();
 
   const currentChapter = chapters.find((c) => c.id === currentChapterId);
   const isSimpleScene = scene === "marketing" || scene === "knowledge";
-  const isNovel = scene === "novel";
-  const isMediumOrLong = novelLength === "medium" || novelLength === "long";
   const [showAIMenu, setShowAIMenu] = useState(false);
   const [floatingToolbar, setFloatingToolbar] = useState<{
     show: boolean;
