@@ -12,6 +12,7 @@ import {
   MessageCircle,
   ChevronDown,
   Copy,
+  Shuffle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -82,6 +83,18 @@ function SidebarContent() {
         <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-50 transition">
           <BookOpen className="w-4 h-4" />
           阅读分析
+        </button>
+        <button
+          onClick={() => router.push("/bside-life")}
+          className={cn(
+            "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition",
+            pathname === "/bside-life"
+              ? "bg-amber-50 text-amber-600 font-medium"
+              : "text-gray-600 hover:bg-gray-50"
+          )}
+        >
+          <Shuffle className="w-4 h-4" />
+          人生B面
         </button>
         <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-50 transition">
           <MoreHorizontal className="w-4 h-4" />
