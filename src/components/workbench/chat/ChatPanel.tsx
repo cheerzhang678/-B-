@@ -1306,6 +1306,7 @@ export default function ChatPanel() {
   const setWorkMode = useEditorStore((s) => s.setWorkMode);
   const scene = useEditorStore((s) => s.scene);
   const setNovelLength = useEditorStore((s) => s.setNovelLength);
+  const novelLength = useEditorStore((s) => s.novelLength);
   const isScreenplay = scene === "screenplay";
   const isMarketing = scene === "marketing";
   const isKnowledge = scene === "knowledge";
@@ -1468,7 +1469,6 @@ export default function ChatPanel() {
   const [adjustRound, setAdjustRound] = useState(0); // which round is awaiting adjust
   const [favKeywords, setFavKeywords] = useState<Set<string>>(new Set());
   const [writingChapter, setWritingChapter] = useState(-1); // -1 = not writing, 0+ = generating chapter index
-  const [novelLength, setNovelLength] = useState<"short" | "medium" | "long" | null>(null); // 短篇/中篇/长篇
   const [input, setInput] = useState("");
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const attachRef = useRef<HTMLDivElement>(null);
